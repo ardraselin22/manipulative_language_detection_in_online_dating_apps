@@ -38,15 +38,15 @@ def load_model():
         # Check if model.safetensors is a Git LFS pointer (typically very small, < 1KB)
         model_file = os.path.join(model_dir, "model.safetensors")
         if os.path.exists(model_file) and os.path.getsize(model_file) < 1024:
-            st.error(
-                "🚨 **Git LFS Error detected!**\n\n"
-                "The deployed model file is only a text pointer, not the actual binary. "
-                "This usually happens when deploying to Streamlit Cloud without `packages.txt` "
-                "configured for `git-lfs`, or if your GitHub LFS bandwidth quota is exceeded.\n\n"
-                "**Fix:** We've added a `packages.txt` file. Commit and push it. "
-                "Then reboot your Streamlit app."
-            )
-            st.stop()
+            import requests
+            st.warning("🔄 **First Boot:** Downloading model weights from Git LFS (~255MB)... This will take a moment.")
+            url = "https://media.githubusercontent.com/media/ardraselin22/manipulative_language_detection_in_online_dating_apps/main/abuse_model/model.safetensors"
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
+            with open(model_file, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            st.success("✅ Download complete!")
             
         tokenizer = AutoTokenizer.from_pretrained(model_dir)
         model = AutoModelForSequenceClassification.from_pretrained(model_dir)
