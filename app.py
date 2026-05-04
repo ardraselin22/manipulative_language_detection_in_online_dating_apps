@@ -17,6 +17,8 @@ import torch
 from transformers import BertTokenizer, BertForSequenceClassification
 from fusion_score import compute_fusion_score, LABEL_NAMES
 
+import os
+
 MODEL_DIR = "abuse_model"
 
 # ============================================================
@@ -27,8 +29,17 @@ print("  Loading Abusive Language Detection Model...")
 print("=" * 50)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-tokenizer = BertTokenizer.from_pretrained(MODEL_DIR)
-model = BertForSequenceClassification.from_pretrained(MODEL_DIR)
+
+if os.path.exists(MODEL_DIR):
+    print(f"  Loading fine-tuned model from {MODEL_DIR}...")
+    tokenizer = BertTokenizer.from_pretrained(MODEL_DIR)
+    model = BertForSequenceClassification.from_pretrained(MODEL_DIR)
+else:
+    print(f"  ⚠️ WARNING: Fine-tuned model not found at '{MODEL_DIR}'.")
+    print(f"  Falling back to base model 'bert-base-uncased' for demonstration.")
+    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+    model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=3)
+
 model.to(device)
 model.eval()
 
