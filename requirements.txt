@@ -3,7 +3,7 @@ torch
 datasets
 pandas
 scikit-learn
-gradio
+streamlit
 seaborn
 matplotlib
 numpy
