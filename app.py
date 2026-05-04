@@ -35,6 +35,19 @@ def load_model():
     model_dir = "abuse_model"
 
     if os.path.exists(model_dir):
+        # Check if model.safetensors is a Git LFS pointer (typically very small, < 1KB)
+        model_file = os.path.join(model_dir, "model.safetensors")
+        if os.path.exists(model_file) and os.path.getsize(model_file) < 1024:
+            st.error(
+                "🚨 **Git LFS Error detected!**\n\n"
+                "The deployed model file is only a text pointer, not the actual binary. "
+                "This usually happens when deploying to Streamlit Cloud without `packages.txt` "
+                "configured for `git-lfs`, or if your GitHub LFS bandwidth quota is exceeded.\n\n"
+                "**Fix:** We've added a `packages.txt` file. Commit and push it. "
+                "Then reboot your Streamlit app."
+            )
+            st.stop()
+            
         tokenizer = AutoTokenizer.from_pretrained(model_dir)
         model = AutoModelForSequenceClassification.from_pretrained(model_dir)
     else:
