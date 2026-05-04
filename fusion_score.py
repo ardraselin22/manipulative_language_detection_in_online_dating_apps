@@ -18,7 +18,7 @@ Risk Levels:
 
 import torch
 import numpy as np
-from transformers import BertTokenizer, BertForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 LABEL_NAMES = ["Normal", "Explicit Abuse", "Manipulative"]
 MODEL_DIR = "abuse_model"
@@ -163,8 +163,8 @@ def compute_fusion_score(model, tokenizer, text, device):
 def load_model_and_score(text, model_dir=MODEL_DIR):
     """Convenience function: load model and compute fusion score."""
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    tokenizer = BertTokenizer.from_pretrained(model_dir)
-    model = BertForSequenceClassification.from_pretrained(model_dir)
+    tokenizer = AutoTokenizer.from_pretrained(model_dir)
+    model = AutoModelForSequenceClassification.from_pretrained(model_dir)
     model.to(device)
     model.eval()
     return compute_fusion_score(model, tokenizer, text, device)

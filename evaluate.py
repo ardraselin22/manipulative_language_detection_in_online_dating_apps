@@ -14,7 +14,7 @@ import numpy as np
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 import seaborn as sns
 import matplotlib.pyplot as plt
-from transformers import BertTokenizer, BertForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from torch.utils.data import DataLoader
 import os
 
@@ -26,8 +26,8 @@ MODEL_DIR = "abuse_model"
 def load_model(model_dir=MODEL_DIR):
     """Load the saved BERT model and tokenizer."""
     print(f"  Loading model from: {model_dir}")
-    tokenizer = BertTokenizer.from_pretrained(model_dir)
-    model = BertForSequenceClassification.from_pretrained(model_dir)
+    tokenizer = AutoTokenizer.from_pretrained(model_dir)
+    model = AutoModelForSequenceClassification.from_pretrained(model_dir)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
     model.eval()

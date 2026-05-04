@@ -1,20 +1,21 @@
 """
 =============================================================================
-TRAIN.PY — BERT Fine-tuning for Abusive Language Detection
+TRAIN.PY — DistilBERT Fine-tuning for Abusive Language Detection
 =============================================================================
-Fine-tunes bert-base-uncased for 3-class sequence classification:
+Fine-tunes distilbert-base-uncased for 3-class sequence classification:
   Label 0 = Normal
   Label 1 = Explicit Abuse
   Label 2 = Manipulative
 
 Uses weighted CrossEntropyLoss for class imbalance handling.
+Model size: ~260MB (vs 440MB for full BERT)
 =============================================================================
 """
 
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-from transformers import BertTokenizer, BertForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from torch.optim import AdamW
 from transformers import get_linear_schedule_with_warmup
 import numpy as np
@@ -25,7 +26,7 @@ import time
 # ============================================================
 # CONFIGURATION
 # ============================================================
-MODEL_NAME = "bert-base-uncased"
+MODEL_NAME = "distilbert-base-uncased"
 MAX_LENGTH = 128
 BATCH_SIZE = 8
 LEARNING_RATE = 2e-5
@@ -110,7 +111,7 @@ def train_model(train_texts, train_labels, test_texts=None, test_labels=None,
         tokenizer: BertTokenizer instance
     """
     print("=" * 60)
-    print("  BERT FINE-TUNING — ABUSIVE LANGUAGE DETECTION")
+    print("  DistilBERT FINE-TUNING — ABUSIVE LANGUAGE DETECTION")
     print("=" * 60)
 
     # ---- Device Setup ----
@@ -118,11 +119,10 @@ def train_model(train_texts, train_labels, test_texts=None, test_labels=None,
     print(f"\n  Device: {device}")
     if device.type == 'cuda':
         print(f"  GPU: {torch.cuda.get_device_name(0)}")
-        print(f"  GPU Memory: {torch.cuda.get_device_properties(0).total_mem / 1e9:.1f} GB")
 
     # ---- Load Tokenizer ----
     print(f"\n  Loading tokenizer: {MODEL_NAME}")
-    tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
     # ---- Create Datasets ----
     print("  Creating PyTorch datasets...")
@@ -139,8 +139,8 @@ def train_model(train_texts, train_labels, test_texts=None, test_labels=None,
         print(f"  Test batches:  {len(test_loader)}")
 
     # ---- Load Model ----
-    print(f"\n  Loading BERT model: {MODEL_NAME} (num_labels=3)")
-    model = BertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=3)
+    print(f"\n  Loading model: {MODEL_NAME} (num_labels=3)")
+    model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=3)
     model.to(device)
 
     # ---- Class Weights for Imbalanced Data ----

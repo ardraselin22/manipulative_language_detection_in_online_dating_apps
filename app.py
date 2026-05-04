@@ -14,7 +14,7 @@ Deploy: Streamlit Cloud (auto-detects app.py)
 import streamlit as st
 import torch
 import os
-from transformers import BertTokenizer, BertForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from fusion_score import compute_fusion_score, LABEL_NAMES
 
 # ============================================================
@@ -35,12 +35,12 @@ def load_model():
     model_dir = "abuse_model"
 
     if os.path.exists(model_dir):
-        tokenizer = BertTokenizer.from_pretrained(model_dir)
-        model = BertForSequenceClassification.from_pretrained(model_dir)
+        tokenizer = AutoTokenizer.from_pretrained(model_dir)
+        model = AutoModelForSequenceClassification.from_pretrained(model_dir)
     else:
-        tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-        model = BertForSequenceClassification.from_pretrained(
-            "bert-base-uncased", num_labels=3
+        tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+        model = AutoModelForSequenceClassification.from_pretrained(
+            "distilbert-base-uncased", num_labels=3
         )
 
     model.to(device)
