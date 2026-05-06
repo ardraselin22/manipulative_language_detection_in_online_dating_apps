@@ -91,69 +91,78 @@ st.divider()
 # ============================================================
 # Input
 # ============================================================
+if "input_text" not in st.session_state:
+    st.session_state["input_text"] = ""
+
+def set_example_text(text_val):
+    st.session_state["input_text"] = text_val
+
 text = st.text_area(
     "💬 Enter conversation (use | to separate turns)",
     placeholder="Type a conversation here...\n\n"
                 "Example: Hello, how are you? | I'm fine | "
                 "That's good to hear!",
     height=120,
+    key="input_text"
 )
 
 # Example buttons
 st.markdown("**Try an example:**")
 col1, col2, col3 = st.columns(3)
 with col1:
-    if st.button("🟡 Manipulative", use_container_width=True):
-        text = "You seem really special | Why didn't you reply? | If you cared you wouldn't ignore me | Send me your number now"
+    st.button("🟡 Manipulative", on_click=set_example_text, args=("You seem really special | Why didn't you reply? | If you cared you wouldn't ignore me | Send me your number now",), use_container_width=True)
 with col2:
-    if st.button("🔴 Abusive", use_container_width=True):
-        text = "You're stupid and nobody likes you"
+    st.button("🔴 Abusive", on_click=set_example_text, args=("You're stupid and nobody likes you",), use_container_width=True)
 with col3:
-    if st.button("🟢 Normal", use_container_width=True):
-        text = "Hey how was your day? | Pretty good, just busy with work | Same here!"
+    st.button("🟢 Normal", on_click=set_example_text, args=("Hey how was your day? | Pretty good, just busy with work | Same here!",), use_container_width=True)
 
 st.divider()
 
 # ============================================================
 # Prediction
 # ============================================================
-if text and text.strip():
-    with st.spinner("Analyzing conversation..."):
-        result = compute_fusion_score(model, tokenizer, text, device)
+predict_button = st.button("🔍 Predict", type="primary", use_container_width=True)
 
-    # Risk level color
-    risk = result['risk_level']
-    if "HIGH" in risk:
-        st.error(f"**{risk}**")
-    elif "WARNING" in risk:
-        st.warning(f"**{risk}**")
+if predict_button:
+    if text and text.strip():
+        with st.spinner("Analyzing conversation..."):
+            result = compute_fusion_score(model, tokenizer, text, device)
+
+        # Risk level color
+        risk = result['risk_level']
+        if "HIGH" in risk:
+            st.error(f"**{risk}**")
+        elif "WARNING" in risk:
+            st.warning(f"**{risk}**")
+        else:
+            st.success(f"**{risk}**")
+
+        # Predicted label
+        st.subheader(f"🏷️ Predicted: {result['predicted_label']}")
+
+        # Score cards
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("📊 Content", f"{result['content_score']:.4f}")
+        c2.metric("🎭 Manipulation", f"{result['manipulation_score']:.4f}")
+        c3.metric("📈 Escalation", f"{result['escalation_score']:.4f}")
+        c4.metric("⚠️ Final Risk", f"{result['final_risk_score']:.4f}")
+
+        # Details
+        with st.expander("📋 Full Details"):
+            st.json({
+                "predicted_label": result['predicted_label'],
+                "content_score": result['content_score'],
+                "manipulation_score": result['manipulation_score'],
+                "manipulation_matches": result['manipulation_matches'],
+                "escalation_score": result['escalation_score'],
+                "final_risk_score": result['final_risk_score'],
+                "risk_level": result['risk_level'],
+                "class_probabilities": result['class_probabilities'],
+            })
     else:
-        st.success(f"**{risk}**")
-
-    # Predicted label
-    st.subheader(f"🏷️ Predicted: {result['predicted_label']}")
-
-    # Score cards
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("📊 Content", f"{result['content_score']:.4f}")
-    c2.metric("🎭 Manipulation", f"{result['manipulation_score']:.4f}")
-    c3.metric("📈 Escalation", f"{result['escalation_score']:.4f}")
-    c4.metric("⚠️ Final Risk", f"{result['final_risk_score']:.4f}")
-
-    # Details
-    with st.expander("📋 Full Details"):
-        st.json({
-            "predicted_label": result['predicted_label'],
-            "content_score": result['content_score'],
-            "manipulation_score": result['manipulation_score'],
-            "manipulation_matches": result['manipulation_matches'],
-            "escalation_score": result['escalation_score'],
-            "final_risk_score": result['final_risk_score'],
-            "risk_level": result['risk_level'],
-            "class_probabilities": result['class_probabilities'],
-        })
+        st.warning("⚠️ Please enter a conversation above to analyze it.")
 else:
-    st.info("👆 Enter a conversation above to analyze it.")
+    st.info("👆 Enter a conversation above and click **Predict** to analyze it.")
 
 # ============================================================
 # Footer

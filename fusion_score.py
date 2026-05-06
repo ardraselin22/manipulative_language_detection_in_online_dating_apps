@@ -26,6 +26,9 @@ MODEL_DIR = "abuse_model"
 # ============================================================
 # High-risk manipulation phrases (rule-based detector)
 # ============================================================
+# ============================================================
+# High-risk manipulation phrases (rule-based detector)
+# ============================================================
 MANIPULATION_PHRASES = [
     "send me your number",
     "if you cared",
@@ -35,14 +38,21 @@ MANIPULATION_PHRASES = [
     "only you understand me",
     "everyone else",
     "you owe me",
-    "i thought you trusted me"
+    "i thought you trusted me",
+    "why didn't you reply",
+    "don't ignore me",
+    "you're special",
+    "i'm the only one",
+    "send me photos",
+    "trust me",
+    "if you love me"
 ]
 
 
 def compute_content_score(model, tokenizer, text, device):
     """
     Compute content score using BERT softmax probability.
-    Returns the predicted label, confidence score, and all class probabilities.
+    Returns the predicted label and a content score representing risk probability.
     """
     encoding = tokenizer(
         text,
@@ -59,7 +69,10 @@ def compute_content_score(model, tokenizer, text, device):
         outputs = model(input_ids=input_ids, attention_mask=attention_mask)
         probs = torch.softmax(outputs.logits, dim=-1)
         pred_label = torch.argmax(probs, dim=-1).item()
-        content_score = probs[0][pred_label].item()
+        
+        # Content score is the sum of probabilities for 'Explicit Abuse' and 'Manipulative'
+        # This represents the total probability that the text is NOT 'Normal'
+        content_score = (probs[0][1] + probs[0][2]).item()
 
     return pred_label, content_score, probs[0].cpu().numpy()
 
@@ -67,32 +80,38 @@ def compute_content_score(model, tokenizer, text, device):
 def compute_manipulation_score(text):
     """
     Rule-based manipulation keyword checker.
-    Scans text for 9 high-risk manipulation phrases.
     Returns: score (0.0 to 1.0) and number of matches found.
     """
     text_lower = text.lower()
     matches = sum(1 for phrase in MANIPULATION_PHRASES if phrase in text_lower)
-    score = matches / len(MANIPULATION_PHRASES)
+    
+    # Sensitivity boost: 1 match = 0.4, 2 matches = 0.8, 3+ = 1.0
+    if matches == 0:
+        score = 0.0
+    elif matches == 1:
+        score = 0.4
+    elif matches == 2:
+        score = 0.8
+    else:
+        score = 1.0
+        
     return score, matches
 
 
 def compute_escalation_score(model, tokenizer, text, device):
     """
     Multi-turn escalation detection.
-    Splits input by '|' separator, runs BERT on each turn,
-    and checks if predicted labels escalate (increase) over turns.
-    
+    Splits input by '|' separator, runs BERT on each turn.
     Returns 0.8 if escalation detected, 0.2 otherwise.
     """
     turns = [t.strip() for t in text.split("|") if t.strip()]
 
-    # Single turn → no escalation possible
     if len(turns) <= 1:
         return 0.2
 
-    # Get BERT prediction for each turn
     turn_labels = []
     for turn in turns:
+        # For escalation, we care if it moves from Normal (0) to Abuse (1) or Manipulative (2)
         label, _, _ = compute_content_score(model, tokenizer, turn, device)
         turn_labels.append(label)
 
@@ -102,6 +121,10 @@ def compute_escalation_score(model, tokenizer, text, device):
         if turn_labels[i] > turn_labels[i - 1]:
             escalation = True
             break
+            
+    # Also check for repeated high-risk labels
+    if sum(1 for l in turn_labels if l > 0) >= 2:
+        escalation = True
 
     return 0.8 if escalation else 0.2
 
@@ -109,19 +132,9 @@ def compute_escalation_score(model, tokenizer, text, device):
 def compute_fusion_score(model, tokenizer, text, device):
     """
     Compute the complete fusion risk score combining all 3 signals.
-
     Formula: Final = (0.4 × Content) + (0.3 × Manipulation) + (0.3 × Escalation)
-
-    Args:
-        model: Trained BertForSequenceClassification
-        tokenizer: BertTokenizer
-        text: Input conversation text (use | for multi-turn)
-        device: torch device
-
-    Returns:
-        Dictionary with all scores and risk assessment.
     """
-    # Signal 1: Content score (BERT confidence)
+    # Signal 1: Content score (BERT risk probability)
     pred_label, content_score, all_probs = compute_content_score(
         model, tokenizer, text, device
     )
@@ -134,6 +147,10 @@ def compute_fusion_score(model, tokenizer, text, device):
 
     # Fusion formula
     final_score = (0.4 * content_score) + (0.3 * manipulation_score) + (0.3 * escalation_score)
+
+    # If BERT specifically predicts Manipulative or Abusive, we ensure a minimum risk level
+    if pred_label > 0:
+        final_score = max(final_score, 0.5)
 
     # Risk level thresholding
     if final_score >= 0.65:
